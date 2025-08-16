@@ -8,7 +8,7 @@ server:
 logging:
   level:
     root: INFO
-    microservices: DEBUG
+    com.microservices: DEBUG
 
 app:
   service:
@@ -21,3 +21,24 @@ app:
     recommendation:
       host: localhost
       port: 7003
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+server:
+  port: 8080
+
+app:
+  service:
+    product:
+      host: product
+      port: 8080
+    review:
+      host: review
+      port: 8080
+    recommendation:
+      host: recommendation
+      port: 8080
