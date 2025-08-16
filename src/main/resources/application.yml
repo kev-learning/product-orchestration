@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: product-orchestration-service
+
+server:
+  port: 7000
+
+logging:
+  level:
+    root: INFO
+    microservices: DEBUG
+
+app:
+  service:
+    product:
+      host: localhost
+      port: 7001
+    review:
+      host: localhost
+      port: 7002
+    recommendation:
+      host: localhost
+      port: 7003
