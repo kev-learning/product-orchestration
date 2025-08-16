@@ -2,6 +2,29 @@ spring:
   application:
     name: product-orchestration-service
 
+springdoc:
+  swagger-ui:
+    path: /openapi/swagger-ui.html
+  api-docs:
+    path: /openapi/v3/api-docs
+  pathsToMatch: /**
+  packagesToScan: com.microservices.core.product.orchestration
+
+api:
+  common:
+    version: 1.0.0
+    title: Sample API
+    description: Description of the API...
+    termsOfService: MY TERMS OF SERVICE
+    license: MY LICENSE
+    licenseUrl: MY LICENSE URL
+    externalDocDesc: MY WIKI PAGE
+    externalDocUrl: MY WIKI URL
+    contact:
+      name: NAME OF CONTACT
+      url: URL TO CONTACT
+      email: contact@mail.com
+
 server:
   port: 7000
 
@@ -21,6 +44,9 @@ app:
     recommendation:
       host: localhost
       port: 7003
+
+
+
 
 ---
 spring:

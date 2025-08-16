@@ -19,6 +19,7 @@ jar {
 
 ext {
 	lombokVersion = '1.18.38'
+	openApiVersion = '2.8.9'
 }
 
 repositories {
@@ -32,6 +33,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'com.microservices.core:microservice-util:1.0.0'
+	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${openApiVersion}"
+	implementation "org.springdoc:springdoc-openapi-starter-webflux-ui:${openApiVersion}"
 
 	compileOnly "org.projectlombok:lombok:${lombokVersion}"
 	annotationProcessor "org.projectlombok:lombok:${lombokVersion}"

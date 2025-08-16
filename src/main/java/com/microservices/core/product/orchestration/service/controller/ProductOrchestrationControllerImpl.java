@@ -1,5 +1,6 @@
 package com.microservices.core.product.orchestration.service.controller;
 
+import com.microservices.core.product.orchestration.service.dto.ProductAggregateDTO;
 import lombok.extern.slf4j.Slf4j;
 import com.microservices.core.product.orchestration.service.remote.IntegrationService;
 import com.microservices.core.util.exceptions.NotFoundException;
@@ -17,7 +18,7 @@ public class ProductOrchestrationControllerImpl implements ProductOrchestrationC
     private IntegrationService integrationService;
 
     @Override
-    public ResponseEntity<Object> getAggregatedProductDetails(Long productId) {
+    public ResponseEntity<ProductAggregateDTO> getAggregatedProductDetails(Long productId) {
 
         if(Objects.isNull(productId) || productId < 1) {
             throw new NotFoundException("No product found for ID: %s".formatted(productId));
