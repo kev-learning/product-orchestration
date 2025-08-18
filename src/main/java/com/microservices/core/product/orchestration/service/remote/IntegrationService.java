@@ -32,12 +32,54 @@ public class IntegrationService {
     @Autowired
     private ReviewService reviewService;
 
-    public ProductAggregateDTO buildProductAggregate(Long productId) {
+    public ProductAggregateDTO createProductAggregate(ProductAggregateDTO productAggregateDTO) {
+        try {
+
+            ProductDTO productDTO = productService.buildProduct(productAggregateDTO);
+
+            ProductDTO createdProduct = productService.createProduct(productDTO);
+
+            List<RecommendationDTO> createdRecommendations = new ArrayList<>();
+            List<ReviewDTO> createdReviews = new ArrayList<>();
+
+            if(!CollectionUtils.isEmpty(productAggregateDTO.recommendationSummaries())) {
+                List<RecommendationDTO> recommendations = recommendationService.buildRecommendations(productAggregateDTO.recommendationSummaries(), createdProduct);
+
+                createdRecommendations = recommendationService.createProductRecommendations(recommendations);
+            }
+
+            if(!CollectionUtils.isEmpty(productAggregateDTO.reviewSummaries())) {
+                List<ReviewDTO> reviews = reviewService.buildReviews(productAggregateDTO.reviewSummaries(), createdProduct);
+
+                createdReviews = reviewService.createProductReviews(reviews);
+            }
+
+            return buildProductAggregate(createdProduct, createdReviews, createdRecommendations);
+        }catch (Exception e) {
+            //Remove data that were persisted
+            productService.deleteProduct(productAggregateDTO.productId());
+            recommendationService.deleteProductRecommendations(productAggregateDTO.productId());
+            reviewService.deleteProductReview(productAggregateDTO.productId());
+            throw e;
+        }
+    }
+
+    public void deleteProductAggregate(Long productId) {
+        productService.deleteProduct(productId);
+        recommendationService.deleteProductRecommendations(productId);
+        reviewService.deleteProductReview(productId);
+    }
+
+    public ProductAggregateDTO getProductAggregate(Long productId) {
         ProductDTO productDTO = productService.getProduct(productId);
 
-        List<ReviewDTO> reviews = reviewService.getReviews(productId);
+        List<ReviewDTO> reviews = reviewService.getProductReviews(productId);
         List<RecommendationDTO> recommendations = recommendationService.getProductRecommendations(productId);
 
+        return buildProductAggregate(productDTO, reviews, recommendations);
+    }
+
+    private ProductAggregateDTO buildProductAggregate(ProductDTO productDTO, List<ReviewDTO> reviews, List<RecommendationDTO> recommendations) {
         String productServiceAddress = productDTO.getServiceAddress();
         String reviewServiceAddress = "";
         String recommendationServiceAddress = "";
