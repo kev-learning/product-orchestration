@@ -9,19 +9,20 @@ import com.microservices.core.product.orchestration.service.dto.RecommendationSu
 import com.microservices.core.product.orchestration.service.remote.dto.RecommendationDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
 
 @Slf4j
 @Component
@@ -52,47 +53,59 @@ public class RecommendationService {
                 .stream().map(recommendationSummaryDTO -> recommendationMapper.mapAtoB(recommendationSummaryDTO, productDTO)).toList();
     }
 
-    public List<RecommendationDTO> getProductRecommendations(Long productId) {
+    public Flux<RecommendationDTO> getProductRecommendations(Long productId) {
         log.debug("Retrieving product recommendation for product ID: {}", productId);
-        log.debug("URL: {}{}", getRecommendationServiceUrl(),productId);
+        log.debug("URL: {}{}", getRecommendationServiceUrlWithParam(),productId);
 
-        try {
-            List<RecommendationDTO> recommendations = restTemplate.exchange(getRecommendationServiceUrlWithParam() + productId, HttpMethod.GET, null, new ParameterizedTypeReference<List<RecommendationDTO>>() {}).getBody();
+        WebClient webClient = WebClient.builder().build();
 
-            log.debug("Found recommendations: {}", recommendations);
-            return recommendations;
-        }catch(HttpClientErrorException ex) {
-            log.warn("Got an error during recommendations retrieval: HTTP Status:{}, message: {}", ex.getMessage(), ex.getResponseBodyAsString());
-            return Collections.emptyList();
-        }
+        Flux<RecommendationDTO> recommendationDTOFlux = webClient.get()
+                .uri(getRecommendationServiceUrlWithParam() + productId)
+                .retrieve()
+                .bodyToFlux(RecommendationDTO.class)
+                .log(log.getName(), Level.FINE)
+                .onErrorResume(error -> {
+                    log.debug("Encountered and error: {}", error.getMessage());
+                    return Flux.empty();
+                });
+
+        log.debug("Found recommendations: {}", recommendationDTOFlux);
+        return recommendationDTOFlux;
     }
 
-    public List<RecommendationDTO> createProductRecommendations(List<RecommendationDTO> recommendationDTOS) {
+    public Flux<List<RecommendationDTO>> createProductRecommendations(List<RecommendationDTO> recommendationDTOS) {
+        if(CollectionUtils.isEmpty(recommendationDTOS)) {
+            return Flux.empty();
+        }
+
         log.debug("Creating new recommendations: {}", recommendationDTOS);
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        WebClient webClient = WebClient.builder().build();
 
-            HttpEntity<List<RecommendationDTO>> entity = new HttpEntity<>(recommendationDTOS, headers);
-            List<RecommendationDTO> recommendationDTOList = restTemplate.exchange(getRecommendationServiceUrl(), HttpMethod.POST, entity, new ParameterizedTypeReference<List<RecommendationDTO>>() {}).getBody();
+        Flux<List<RecommendationDTO>> recommendationDTOFlux = webClient.post()
+                .uri(getRecommendationServiceUrl())
+                .headers(httpHeaders -> httpHeaders.setContentType(MediaType.APPLICATION_JSON))
+                .body(Flux.fromIterable(recommendationDTOS), RecommendationDTO.class)
+                .retrieve()
+                .bodyToFlux(RecommendationDTO.class)
+                .onErrorMap(WebClientResponseException.class, ex -> ProductOrchestrationUtil.handleWebClientException(ex, objectMapper))
+                .collectList().flatMapMany(Flux::just);
 
-            log.debug("Created recommendations: {}", recommendationDTOList);
-            return recommendationDTOList;
-        } catch(HttpClientErrorException ex) {
-            ProductOrchestrationUtil.handleException(ex, objectMapper);
-            return null;
-        }
+        log.debug("Created recommendations: {}", recommendationDTOFlux);
+        return recommendationDTOFlux;
     }
 
-    public void deleteProductRecommendations(Long productId) {
+    public Mono<Void> deleteProductRecommendations(Long productId) {
         log.debug("Deleting product recommendation using product ID: {}", productId);
 
-        try {
-            restTemplate.delete(URI.create(getRecommendationServiceUrlWithParam() + productId));
-        } catch(HttpClientErrorException ex){
-            ProductOrchestrationUtil.handleException(ex, objectMapper);
-        }
+        WebClient webClient = WebClient.builder().build();
+
+        return webClient.delete()
+                .uri(getRecommendationServiceUrlWithParam() + productId)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .onErrorMap(WebClientResponseException.class, ex -> ProductOrchestrationUtil.handleWebClientException(ex, objectMapper));
+
     }
 
     private String getRecommendationServiceUrlWithParam() {

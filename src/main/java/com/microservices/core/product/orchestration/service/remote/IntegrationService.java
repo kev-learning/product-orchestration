@@ -12,9 +12,12 @@ import com.microservices.core.util.http.ServiceUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 
 @Slf4j
 @Component
@@ -32,51 +35,65 @@ public class IntegrationService {
     @Autowired
     private ReviewService reviewService;
 
-    public ProductAggregateDTO createProductAggregate(ProductAggregateDTO productAggregateDTO) {
+    public Flux<ProductAggregateDTO> createProductAggregate(ProductAggregateDTO productAggregateDTO) {
         try {
 
             ProductDTO productDTO = productService.buildProduct(productAggregateDTO);
 
-            ProductDTO createdProduct = productService.createProduct(productDTO);
 
-            List<RecommendationDTO> createdRecommendations = new ArrayList<>();
-            List<ReviewDTO> createdReviews = new ArrayList<>();
+            // Create first the Mono and Flux objects and will be in the Flux.zip for execution.
+            Mono<ProductDTO> createdProduct = productService.createProduct(productDTO);
+            Flux<List<RecommendationDTO>> createdRecommendations = Flux.empty();
+            Flux<List<ReviewDTO>> createdReviews = Flux.empty();
+
 
             if(!CollectionUtils.isEmpty(productAggregateDTO.recommendationSummaries())) {
-                List<RecommendationDTO> recommendations = recommendationService.buildRecommendations(productAggregateDTO.recommendationSummaries(), createdProduct);
+                List<RecommendationDTO> recommendations = recommendationService.buildRecommendations(productAggregateDTO.recommendationSummaries(), productDTO);
 
                 createdRecommendations = recommendationService.createProductRecommendations(recommendations);
             }
 
             if(!CollectionUtils.isEmpty(productAggregateDTO.reviewSummaries())) {
-                List<ReviewDTO> reviews = reviewService.buildReviews(productAggregateDTO.reviewSummaries(), createdProduct);
+                List<ReviewDTO> reviews = reviewService.buildReviews(productAggregateDTO.reviewSummaries(), productDTO);
 
                 createdReviews = reviewService.createProductReviews(reviews);
             }
 
-            return buildProductAggregate(createdProduct, createdReviews, createdRecommendations);
+
+            // This will execute the Mono and Flux operations and will wait for all the operations to complete to build the response.
+            return Flux.zip(createdProduct, createdRecommendations, createdReviews)
+                    .map (tuple -> buildProductAggregate(tuple.getT1(), tuple.getT3(), tuple.getT2()))
+                    .doOnError(ex -> log.warn("Product detail creation failed: {}", ex.getMessage()))
+                    .log(log.getName(), Level.FINE);
         }catch (Exception e) {
             //Remove data that were persisted
             productService.deleteProduct(productAggregateDTO.productId());
             recommendationService.deleteProductRecommendations(productAggregateDTO.productId());
             reviewService.deleteProductReview(productAggregateDTO.productId());
-            throw e;
+            return Flux.empty();
         }
     }
 
-    public void deleteProductAggregate(Long productId) {
-        productService.deleteProduct(productId);
-        recommendationService.deleteProductRecommendations(productId);
-        reviewService.deleteProductReview(productId);
+    public Mono<Void> deleteProductAggregate(Long productId) {
+        try {
+            return Mono.zip(execution -> "",
+                    productService.deleteProduct(productId),
+                    recommendationService.deleteProductRecommendations(productId),
+                    reviewService.deleteProductReview(productId))
+                    .doOnError(ex -> log.warn("Product deletion failed: {}", ex.getMessage()))
+                    .log(log.getName(), Level.FINE).then();
+        }catch(RuntimeException ex) {
+            throw ex;
+        }
     }
 
-    public ProductAggregateDTO getProductAggregate(Long productId) {
-        ProductDTO productDTO = productService.getProduct(productId);
+    public Mono<ProductAggregateDTO> getProductAggregate(Long productId) {
 
-        List<ReviewDTO> reviews = reviewService.getProductReviews(productId);
-        List<RecommendationDTO> recommendations = recommendationService.getProductRecommendations(productId);
 
-        return buildProductAggregate(productDTO, reviews, recommendations);
+        return Mono.zip(values -> buildProductAggregate((ProductDTO) values[0], (List<ReviewDTO>) values[1], (List<RecommendationDTO>) values[2]),
+            productService.getProduct(productId), reviewService.getProductReviews(productId).collectList(), recommendationService.getProductRecommendations(productId).collectList())
+                .doOnError(ex -> log.warn("Product detail retrieval failed: {}", ex.getMessage()))
+                .log(log.getName(), Level.FINE);
     }
 
     private ProductAggregateDTO buildProductAggregate(ProductDTO productDTO, List<ReviewDTO> reviews, List<RecommendationDTO> recommendations) {

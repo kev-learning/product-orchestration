@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.Objects;
 
@@ -32,7 +34,7 @@ public class ProductOrchestrationController {
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
     @GetMapping(value = "/product-orchestration/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<ProductAggregateDTO> getAggregatedProductDetails(@PathVariable("productId") Long productId) {
+    ResponseEntity<Mono<ProductAggregateDTO>> getAggregatedProductDetails(@PathVariable("productId") Long productId) {
 
         if(Objects.isNull(productId) || productId < 1) {
             throw new NotFoundException("No product found for ID: %s".formatted(productId));
@@ -49,7 +51,7 @@ public class ProductOrchestrationController {
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
     @PostMapping(value = "/product-orchestration", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<ProductAggregateDTO> createProductAggregate(@RequestBody ProductAggregateDTO productAggregateDTO) {
+    ResponseEntity<Flux<ProductAggregateDTO>> createProductAggregate(@RequestBody ProductAggregateDTO productAggregateDTO) {
         return new ResponseEntity<>(integrationService.createProductAggregate(productAggregateDTO), HttpStatus.CREATED);
     }
 
@@ -61,7 +63,7 @@ public class ProductOrchestrationController {
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
     @DeleteMapping(value = "/product-orchestration/{productId}")
-    void deleteProductAggregate(@PathVariable("productId") Long productId) {
-        integrationService.deleteProductAggregate(productId);
+    Mono<Void> deleteProductAggregate(@PathVariable("productId") Long productId) {
+        return integrationService.deleteProductAggregate(productId);
     }
 }
