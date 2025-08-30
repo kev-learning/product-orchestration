@@ -1,11 +1,15 @@
 package com.microservices.core.product.orchestration.service.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microservices.core.util.api.event.Event;
 import com.microservices.core.util.exceptions.InvalidInputException;
 import com.microservices.core.util.exceptions.NotFoundException;
 import com.microservices.core.util.http.HttpErrorInfo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.io.IOException;
@@ -18,6 +22,14 @@ public class ProductOrchestrationUtil {
 
     private ProductOrchestrationUtil() {
 
+    }
+
+    public static void sendMessage(StreamBridge streamBridge, Event<Long, ?> event, String topicName) {
+        log.debug("Sending message: {} to {}", event.getEventType(), topicName);
+        Message<?> message = MessageBuilder.withPayload(event)
+                .setHeader("partitionKey", event.getKey())
+                .build();
+        streamBridge.send(topicName, message);
     }
 
     public static String getErrorMessage(ObjectMapper objectMapper, WebClientResponseException ex) {

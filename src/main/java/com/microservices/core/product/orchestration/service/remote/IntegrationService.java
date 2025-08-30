@@ -74,6 +74,43 @@ public class IntegrationService {
         }
     }
 
+    public Mono<Void> createProductAggregateAsync(ProductAggregateDTO productAggregateDTO) {
+        try {
+
+            ProductDTO productDTO = productService.buildProduct(productAggregateDTO);
+
+            List<Mono<?>> monos = new ArrayList<>();
+
+            monos.add(productService.createProductAsync(productDTO));
+
+            if(!CollectionUtils.isEmpty(productAggregateDTO.reviewSummaries())) {
+                List<ReviewDTO> reviewDTOS = reviewService.buildReviews(productAggregateDTO.reviewSummaries(), productDTO);
+
+                reviewDTOS.forEach(reviewDTO -> {
+                    monos.add(reviewService.createProductReviewAsync(reviewDTO));
+                });
+            }
+
+            if(!CollectionUtils.isEmpty(productAggregateDTO.recommendationSummaries())) {
+                List<RecommendationDTO> recommendationDTOS = recommendationService.buildRecommendations(productAggregateDTO.recommendationSummaries(), productDTO);
+
+                recommendationDTOS.forEach(recommendationDTO -> {
+                    monos.add(recommendationService.createProductRecommendationAsync(recommendationDTO));
+                });
+            }
+
+            return Mono.zip(r -> "", monos.toArray(new Mono[0]))
+                    .doOnError(ex -> log.warn("Creation of product failed: {}", ex.toString()))
+                    .then();
+        }catch (Exception e) {
+            //Remove data that were persisted
+            productService.deleteProductAsync(productAggregateDTO.productId());
+            recommendationService.deleteProductRecommendationsAsync(productAggregateDTO.productId());
+            reviewService.deleteProductReviewAsync(productAggregateDTO.productId());
+            throw e;
+        }
+    }
+
     public Mono<Void> deleteProductAggregate(Long productId) {
         try {
             return Mono.zip(execution -> "",
@@ -85,6 +122,15 @@ public class IntegrationService {
         }catch(RuntimeException ex) {
             throw ex;
         }
+    }
+
+    public Mono<Void> deleteProductAggregateAsync(Long productId) {
+        return Mono.zip(r -> "",
+                productService.deleteProductAsync(productId),
+                recommendationService.deleteProductRecommendationsAsync(productId),
+                reviewService.deleteProductReviewAsync(productId))
+                .doOnError(ex -> log.warn("Deletion of product failed: {}", ex.getMessage()))
+                .log(log.getName(), Level.FINE).then();
     }
 
     public Mono<ProductAggregateDTO> getProductAggregate(Long productId) {

@@ -2,6 +2,8 @@ package com.microservices.core.product.orchestration.service.controller;
 
 import com.microservices.core.product.orchestration.service.dto.ProductAggregateDTO;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +30,7 @@ public class ProductOrchestrationController {
 
     @Operation(summary = "Returns the product details and associated data")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "OK"),
+            @ApiResponse(responseCode = "200", description = "OK", content = @Content(schema = @Schema(implementation = ProductAggregateDTO.class))),
             @ApiResponse(responseCode = "400", description = "Provided Product ID is invalid"),
             @ApiResponse(responseCode = "404", description = "Product not found"),
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
@@ -45,13 +47,18 @@ public class ProductOrchestrationController {
 
     @Operation(summary = "Create the product and associated data")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Created"),
+            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(implementation = ProductAggregateDTO.class))),
             @ApiResponse(responseCode = "400", description = "Provided Product ID is invalid"),
             @ApiResponse(responseCode = "404", description = "Product not found"),
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
     @PostMapping(value = "/product-orchestration", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<Flux<ProductAggregateDTO>> createProductAggregate(@RequestBody ProductAggregateDTO productAggregateDTO) {
+    ResponseEntity<Flux<?>> createProductAggregate(@RequestParam(name = "isAsync", defaultValue = "false") boolean isAsync, @RequestBody ProductAggregateDTO productAggregateDTO) {
+
+        if(isAsync) {
+            return new ResponseEntity<>(integrationService.createProductAggregateAsync(productAggregateDTO).flux(), HttpStatus.CREATED);
+        }
+
         return new ResponseEntity<>(integrationService.createProductAggregate(productAggregateDTO), HttpStatus.CREATED);
     }
 
@@ -63,7 +70,10 @@ public class ProductOrchestrationController {
             @ApiResponse(responseCode = "500", description = "Internal Server Error")
     })
     @DeleteMapping(value = "/product-orchestration/{productId}")
-    Mono<Void> deleteProductAggregate(@PathVariable("productId") Long productId) {
+    Mono<Void> deleteProductAggregate(@RequestParam(name = "isAsync", defaultValue = "false") boolean isAsync, @PathVariable("productId") Long productId) {
+        if(isAsync) {
+            return integrationService.deleteProductAggregateAsync(productId);
+        }
         return integrationService.deleteProductAggregate(productId);
     }
 }
