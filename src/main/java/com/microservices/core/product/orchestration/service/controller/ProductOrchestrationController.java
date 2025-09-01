@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import com.microservices.core.product.orchestration.service.remote.IntegrationService;
@@ -22,6 +23,7 @@ import java.util.Objects;
 
 @Slf4j
 @RestController
+@SecurityRequirement(name = "security_auth")
 @Tag(name = "Product Orchestration", description = "REST API for operations on Product and it's related data.")
 public class ProductOrchestrationController {
 
