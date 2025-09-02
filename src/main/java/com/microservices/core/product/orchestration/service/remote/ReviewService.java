@@ -57,7 +57,7 @@ public class ReviewService {
     private StreamBridge streamBridge;
 
     @Autowired
-    private WebClient.Builder builder;
+    private WebClient webClient;
 
     public List<ReviewSummaryDTO> buildReviewSummaries(List<ReviewDTO> reviews) {
         return Optional.ofNullable(reviews).orElse(Collections.emptyList())
@@ -72,8 +72,6 @@ public class ReviewService {
     public Flux<ReviewDTO> getProductReviews(Long productId) {
         log.debug("Retrieving product reviews for product ID: {}", productId);
         log.debug("URL: {}{}", getReviewServiceWithParamUrl(),productId);
-
-        WebClient webClient = builder.build();
 
         Flux<ReviewDTO> reviewDTOFlux = webClient.get()
                 .uri(getReviewServiceWithParamUrl() + productId)
@@ -103,8 +101,6 @@ public class ReviewService {
 
         log.debug("Creating new product reviews: {}", reviewDTOS);
 
-        WebClient webClient = builder.build();
-
         Flux<List<ReviewDTO>> createdReviewDTO =  webClient.post()
                 .uri(getReviewServiceUrl())
                 .headers(httpHeaders -> httpHeaders.setContentType(MediaType.APPLICATION_JSON))
@@ -127,8 +123,6 @@ public class ReviewService {
 
     public Mono<Void> deleteProductReview(Long productId) {
         log.debug("Deleting product reviews using product ID: {}", productId);
-
-        WebClient webClient = builder.build();
 
         return webClient.delete()
                 .uri(getReviewServiceWithParamUrl() + productId)

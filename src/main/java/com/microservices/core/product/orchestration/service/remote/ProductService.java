@@ -5,6 +5,9 @@ import com.microservices.core.product.orchestration.service.dto.ProductAggregate
 import com.microservices.core.product.orchestration.service.mapper.ProductMapper;
 import com.microservices.core.product.orchestration.service.util.TopicConstants;
 import com.microservices.core.util.api.event.Event;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.extern.slf4j.Slf4j;
 import com.microservices.core.product.orchestration.service.util.ProductOrchestrationUtil;
 import com.microservices.core.product.orchestration.service.remote.dto.ProductDTO;
@@ -52,17 +55,18 @@ public class ProductService {
     private StreamBridge streamBridge;
 
     @Autowired
-    private WebClient.Builder builder;
+    private WebClient webClient;
 
     public ProductDTO buildProduct(ProductAggregateDTO productAggregateDTO) {
         return productMapper.mapAtoB(productAggregateDTO);
     }
 
+    @Retry(name = "product")
+    @TimeLimiter(name = "product")
+    @CircuitBreaker(name = "product", fallbackMethod = "getProductFallbackValue")
     public Mono<ProductDTO> getProduct(Long productId) {
         log.debug("Retrieving product information using ID: {}", productId);
         log.debug("URL: {}{}", getProductServiceUrl(),productId);
-
-        WebClient webClient = builder.build();
 
         return webClient.get()
                 .uri(getProductServiceUrl() + productId)
@@ -71,6 +75,10 @@ public class ProductService {
                 .log(log.getName(), Level.FINE)
                 .onErrorMap(WebClientResponseException.class, ex -> ProductOrchestrationUtil.handleWebClientException(ex, objectMapper));
 
+    }
+
+    private Mono<ProductDTO> getProductFallbackValue() {
+        return Mono.just(new ProductDTO(0L, "Fallback product", 0, "Fallback service address"));
     }
 
     public Mono<ProductDTO> createProductAsync(ProductDTO productDTO) {
@@ -87,8 +95,6 @@ public class ProductService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         HttpEntity<ProductDTO> entity = new HttpEntity<>(productDTO, headers);
-
-        WebClient webClient = builder.build();
 
         return webClient.post()
                 .uri(getProductServiceUrl())
@@ -111,7 +117,6 @@ public class ProductService {
     public Mono<Void> deleteProduct(Long productId) {
         log.debug("Deleting product using ID: {}", productId);
 
-        WebClient webClient = builder.build();
         return webClient.delete()
                 .uri(getProductServiceUrl() + productId)
                 .retrieve()

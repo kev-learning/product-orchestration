@@ -57,7 +57,7 @@ public class RecommendationService {
     private StreamBridge streamBridge;
 
     @Autowired
-    private WebClient.Builder builder;
+    private WebClient webClient;
 
     public List<RecommendationSummaryDTO> buildRecommendationSummaries(List<RecommendationDTO> recommendations) {
         return Optional.ofNullable(recommendations).orElse(Collections.emptyList())
@@ -72,8 +72,6 @@ public class RecommendationService {
     public Flux<RecommendationDTO> getProductRecommendations(Long productId) {
         log.debug("Retrieving product recommendation for product ID: {}", productId);
         log.debug("URL: {}{}", getRecommendationServiceUrlWithParam(),productId);
-
-        WebClient webClient = builder.build();
 
         Flux<RecommendationDTO> recommendationDTOFlux = webClient.get()
                 .uri(getRecommendationServiceUrlWithParam() + productId)
@@ -103,8 +101,6 @@ public class RecommendationService {
 
         log.debug("Creating new recommendations: {}", recommendationDTOS);
 
-        WebClient webClient = builder.build();
-
         Flux<List<RecommendationDTO>> recommendationDTOFlux = webClient.post()
                 .uri(getRecommendationServiceUrl())
                 .headers(httpHeaders -> httpHeaders.setContentType(MediaType.APPLICATION_JSON))
@@ -126,8 +122,6 @@ public class RecommendationService {
 
     public Mono<Void> deleteProductRecommendations(Long productId) {
         log.debug("Deleting product recommendation using product ID: {}", productId);
-
-        WebClient webClient = builder.build();
 
         return webClient.delete()
                 .uri(getRecommendationServiceUrlWithParam() + productId)
