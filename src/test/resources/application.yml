@@ -21,7 +21,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://${app.auth-server}:9999
+          issuer-uri: http://${app.auth-server}:80
 
 springdoc:
   swagger-ui:
@@ -75,36 +75,3 @@ app:
       port: 7003
   eureka-server: localhost
   auth-server: localhost
-
----
-spring:
-  config:
-    activate:
-      on-profile: docker
-  kafka:
-    bootstrap-servers: kafka:9092
-  cloud:
-    stream:
-      kafka:
-        binder:
-          brokers: kafka
-          defaultBrokerPort: 9092
-          replication-factor: 1
-
-server:
-  port: 8080
-  forward-headers-strategy: framework
-
-app:
-  eureka-server: eureka
-  auth-server: auth-server
-
-eureka:
-  client:
-    serviceUrl:
-      defaultZone: http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server}:8761/eureka/
-    initialInstanceInfoReplicationIntervalSeconds: 5
-    registryFetchIntervalSeconds: 5
-  instance:
-    leaseRenewalIntervalInSeconds: 5
-    leaseExpirationDurationInSeconds: 5

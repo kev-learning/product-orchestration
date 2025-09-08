@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(classes = TestSecurityConfig.class, properties = {"eureka.client.enabled=false", "spring.main.allow-bean-definition-overriding=true", "spring.cloud.config.enabled=false"})
+@SpringBootTest(classes = TestSecurityConfig.class, properties = {"spring.main.allow-bean-definition-overriding=true"})
 @ImportAutoConfiguration(exclude = KafkaAutoConfiguration.class)
 class ProductOrchestrationServiceApplicationTests {
 
